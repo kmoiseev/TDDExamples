@@ -3,8 +3,8 @@ package ru.kmoiseev.moneytransfer.impl;
 import ru.kmoiseev.moneytransfer.MoneyTrans;
 
 import java.math.BigInteger;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static java.math.BigInteger.ZERO;
 import static java.util.Objects.nonNull;
@@ -16,7 +16,7 @@ import static java.util.Optional.ofNullable;
  */
 public class MoneyTransImpl implements MoneyTrans {
 
-    private final Map<String,Account> accounts = new HashMap<>();
+    private final Map<String,Account> accounts = new ConcurrentHashMap<>();
 
     private static boolean checkAccountInput(String account) {
         return nonNull(account) && !account.isBlank() && account.length() <= 256;
@@ -31,11 +31,7 @@ public class MoneyTransImpl implements MoneyTrans {
         if (!checkAccountInput(account)) {
             return false;
         }
-        if (accounts.containsKey(account)) {
-            return false;
-        }
-        accounts.put(account, new Account());
-        return true;
+        return accounts.putIfAbsent(account, new Account()) == null;
     }
 
     @Override
@@ -69,18 +65,15 @@ public class MoneyTransImpl implements MoneyTrans {
         final Account fromAccount = accounts.get(fromAccountName);
         final Account toAccount = accounts.get(toAccountName);
 
-        final Object lockOne = fromAccountName.compareTo(toAccountName) > 0 ? fromAccount : toAccount;
-        final Object lockTwo = fromAccountName.compareTo(toAccountName) > 0 ? toAccount : fromAccount;
-
-        synchronized (lockOne) {
-            synchronized (lockTwo) {
-                if (fromAccount.deposit.compareTo(amount) < 0) {
-                    return false;
-                }
-
-                fromAccount.deposit = fromAccount.deposit.subtract(amount);
-                toAccount.deposit = toAccount.deposit.add(amount);
+        synchronized (fromAccount) {
+            if (fromAccount.deposit.compareTo(amount) < 0) {
+                return false;
             }
+            fromAccount.deposit = fromAccount.deposit.subtract(amount);
+        }
+
+        synchronized (toAccount) {
+            toAccount.deposit = toAccount.deposit.add(amount);
         }
 
         return true;

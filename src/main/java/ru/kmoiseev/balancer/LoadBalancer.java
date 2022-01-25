@@ -1,5 +1,7 @@
 package ru.kmoiseev.balancer;
 
+import ru.kmoiseev.balancer.impl.strategy.BalanceType;
+
 /**
  * Req:
  * - Up to 20 entries
@@ -7,6 +9,5 @@ package ru.kmoiseev.balancer;
  */
 public interface LoadBalancer {
     boolean registerUrl(String url);
-    String roundRobin();
-    String random();
+    String getUrl(BalanceType balanceType);
 }

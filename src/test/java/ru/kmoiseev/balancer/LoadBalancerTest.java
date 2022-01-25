@@ -3,6 +3,7 @@ package ru.kmoiseev.balancer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import ru.kmoiseev.balancer.impl.LoadBalancerImpl;
+import ru.kmoiseev.balancer.impl.strategy.BalanceType;
 
 import java.util.List;
 import java.util.Set;
@@ -18,6 +19,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static ru.kmoiseev.balancer.impl.strategy.BalanceType.RANDOM;
+import static ru.kmoiseev.balancer.impl.strategy.BalanceType.ROUND_ROBIN;
 
 /**
  * @author konstantinmoiseev
@@ -63,9 +66,9 @@ public class LoadBalancerTest {
         final boolean addedSecond = loadBalancer.registerUrl("1");
 
         assertFalse(addedSecond, "Same uri cannot be registered twice");
-        assertEquals("1", loadBalancer.roundRobin());
-        assertEquals("2", loadBalancer.roundRobin());
-        assertEquals("1", loadBalancer.roundRobin());
+        assertEquals("1", loadBalancer.getUrl(ROUND_ROBIN));
+        assertEquals("2", loadBalancer.getUrl(ROUND_ROBIN));
+        assertEquals("1", loadBalancer.getUrl(ROUND_ROBIN));
     }
 
     @Test
@@ -74,12 +77,12 @@ public class LoadBalancerTest {
         loadBalancer.registerUrl("2");
         loadBalancer.registerUrl("3");
 
-        assertEquals("1", loadBalancer.roundRobin(), "Expecting the first uri to be round robined first");
+        assertEquals("1", loadBalancer.getUrl(ROUND_ROBIN), "Expecting the first uri to be round robined first");
     }
 
     @Test
     void roundRobinReturnsNullWhenNothingRegistered() {
-        assertNull(loadBalancer.roundRobin(), "Did not expect anything to return when nothing have been registered");
+        assertNull(loadBalancer.getUrl(ROUND_ROBIN), "Did not expect anything to return when nothing have been registered");
     }
 
     @Test
@@ -90,10 +93,10 @@ public class LoadBalancerTest {
         loadBalancer.registerUrl("4");
 
         for (int i = 0; i < 5; ++i) {
-            assertEquals("1", loadBalancer.roundRobin());
-            assertEquals("2", loadBalancer.roundRobin());
-            assertEquals("3", loadBalancer.roundRobin());
-            assertEquals("4", loadBalancer.roundRobin());
+            assertEquals("1", loadBalancer.getUrl(ROUND_ROBIN));
+            assertEquals("2", loadBalancer.getUrl(ROUND_ROBIN));
+            assertEquals("3", loadBalancer.getUrl(ROUND_ROBIN));
+            assertEquals("4", loadBalancer.getUrl(ROUND_ROBIN));
         }
     }
 
@@ -106,8 +109,8 @@ public class LoadBalancerTest {
 
         final ExecutorService executorService = Executors.newFixedThreadPool(25);
         final Runnable runnableRoundRobins = () -> {
-            loadBalancer.roundRobin();
-            loadBalancer.roundRobin();
+            loadBalancer.getUrl(ROUND_ROBIN);
+            loadBalancer.getUrl(ROUND_ROBIN);
         };
         IntStream.rangeClosed(1, 10000)
                 .parallel()
@@ -115,8 +118,8 @@ public class LoadBalancerTest {
                 .forEach(CompletableFuture::join);
 
 
-        assertEquals("1", loadBalancer.roundRobin());
-        assertEquals("2", loadBalancer.roundRobin());
+        assertEquals("1", loadBalancer.getUrl(ROUND_ROBIN));
+        assertEquals("2", loadBalancer.getUrl(ROUND_ROBIN));
     }
 
     @Test
@@ -127,7 +130,7 @@ public class LoadBalancerTest {
         final ExecutorService executorService = Executors.newFixedThreadPool(25);
         IntStream.rangeClosed(1, 10000)
                 .parallel()
-                .mapToObj(runnable -> runAsync(() -> assertTrue(urls.contains(loadBalancer.random())), executorService))
+                .mapToObj(runnable -> runAsync(() -> assertTrue(urls.contains(loadBalancer.getUrl(RANDOM))), executorService))
                 .forEach(CompletableFuture::join);
     }
 
@@ -137,9 +140,8 @@ public class LoadBalancerTest {
         urls.forEach(loadBalancer::registerUrl);
 
         final List<Integer> results = IntStream.rangeClosed(1, 10000)
-                .mapToObj(i -> urls.indexOf(loadBalancer.random()))
+                .mapToObj(i -> urls.indexOf(loadBalancer.getUrl(RANDOM)))
                 .collect(Collectors.toList());
-
 
         assertNotEquals(1, results.stream().distinct().count(), "All results of random returned same url");
     }

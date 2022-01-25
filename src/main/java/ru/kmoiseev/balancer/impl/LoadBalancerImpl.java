@@ -1,6 +1,7 @@
 package ru.kmoiseev.balancer.impl;
 
 import ru.kmoiseev.balancer.LoadBalancer;
+import ru.kmoiseev.balancer.impl.strategy.BalanceType;
 import ru.kmoiseev.balancer.impl.strategy.Context;
 import ru.kmoiseev.balancer.impl.strategy.Strategy;
 import ru.kmoiseev.balancer.impl.strategy.StrategyEmptyUrls;
@@ -8,10 +9,14 @@ import ru.kmoiseev.balancer.impl.strategy.StrategyRandom;
 import ru.kmoiseev.balancer.impl.strategy.StrategyRoundRobin;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static java.util.Collections.emptyList;
+import static ru.kmoiseev.balancer.impl.strategy.BalanceType.RANDOM;
+import static ru.kmoiseev.balancer.impl.strategy.BalanceType.ROUND_ROBIN;
 
 /**
  * @author konstantinmoiseev
@@ -20,9 +25,14 @@ import static java.util.Collections.emptyList;
 public class LoadBalancerImpl implements LoadBalancer {
 
     private final Long limit;
-    private List<String> urls = emptyList();
-    private Strategy random = new StrategyEmptyUrls();
-    private Strategy roundRobin = new StrategyEmptyUrls();
+    private final Map<BalanceType, Function<Context,Strategy>> strategiesCreators = Map.of(
+            ROUND_ROBIN, StrategyRoundRobin::new,
+            RANDOM, StrategyRandom::new
+    );
+    private volatile List<String> urls = emptyList();
+    private volatile Map<BalanceType,Strategy> strategies = Map.of(
+            ROUND_ROBIN, new StrategyEmptyUrls(),
+            RANDOM, new StrategyEmptyUrls());
 
     public LoadBalancerImpl(Long limit) {
         this.limit = limit;
@@ -43,19 +53,21 @@ public class LoadBalancerImpl implements LoadBalancer {
 
         final Context context = new Context(urls);
 
-        random = new StrategyRandom(context);
-        roundRobin = new StrategyRoundRobin(context);
+
+        strategies = strategiesCreators.entrySet().stream()
+                .collect(Collectors.toUnmodifiableMap(
+                        Map.Entry::getKey,
+                        (entry) -> entry.getValue().apply(context)
+                ));
 
         return true;
     }
 
     @Override
-    public String roundRobin() {
-        return roundRobin.getNext();
-    }
-
-    @Override
-    public String random() {
-        return random.getNext();
+    public String getUrl(BalanceType balanceType) {
+        if (balanceType == null) {
+            return null;
+        }
+        return strategies.get(balanceType).getNext();
     }
 }
