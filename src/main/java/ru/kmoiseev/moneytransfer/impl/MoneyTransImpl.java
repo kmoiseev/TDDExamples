@@ -91,6 +91,6 @@ public class MoneyTransImpl implements MoneyTrans {
     }
 
     private static class Account {
-        private volatile BigInteger deposit = ZERO;
+        private BigInteger deposit = ZERO;
     }
 }
