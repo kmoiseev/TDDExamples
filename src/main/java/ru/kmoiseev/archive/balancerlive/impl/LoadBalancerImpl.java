@@ -1,11 +1,11 @@
-package ru.kmoiseev.live.impl;
+package ru.kmoiseev.archive.balancerlive.impl;
 
-import ru.kmoiseev.live.LoadBalancer;
-import ru.kmoiseev.live.dto.BackEndInstance;
-import ru.kmoiseev.live.dto.Strategy;
-import ru.kmoiseev.live.exception.AddressAlreadyRegisteredException;
-import ru.kmoiseev.live.exception.AddressesLimitExceededException;
-import ru.kmoiseev.live.exception.NoInstancesPresentException;
+import ru.kmoiseev.archive.balancerlive.LoadBalancer;
+import ru.kmoiseev.archive.balancerlive.dto.BackEndInstance;
+import ru.kmoiseev.archive.balancerlive.dto.Strategy;
+import ru.kmoiseev.archive.balancerlive.exception.AddressAlreadyRegisteredException;
+import ru.kmoiseev.archive.balancerlive.exception.AddressesLimitExceededException;
+import ru.kmoiseev.archive.balancerlive.exception.NoInstancesPresentException;
 
 import java.util.ArrayList;
 import java.util.List;

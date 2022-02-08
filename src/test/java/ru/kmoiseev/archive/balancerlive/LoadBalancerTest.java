@@ -1,18 +1,16 @@
-package ru.kmoiseev.live;
+package ru.kmoiseev.archive.balancerlive;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import ru.kmoiseev.live.dto.BackEndInstance;
-import ru.kmoiseev.live.dto.Strategy;
-import ru.kmoiseev.live.exception.AddressAlreadyRegisteredException;
-import ru.kmoiseev.live.exception.AddressesLimitExceededException;
-import ru.kmoiseev.live.exception.NoInstancesPresentException;
-import ru.kmoiseev.live.impl.LoadBalancerImpl;
+import ru.kmoiseev.archive.balancerlive.dto.BackEndInstance;
+import ru.kmoiseev.archive.balancerlive.exception.AddressAlreadyRegisteredException;
+import ru.kmoiseev.archive.balancerlive.exception.AddressesLimitExceededException;
+import ru.kmoiseev.archive.balancerlive.exception.NoInstancesPresentException;
+import ru.kmoiseev.archive.balancerlive.impl.LoadBalancerImpl;
 
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import static java.util.stream.IntStream.range;
 import static java.util.stream.IntStream.rangeClosed;
@@ -20,8 +18,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static ru.kmoiseev.live.dto.Strategy.RANDOM;
-import static ru.kmoiseev.live.dto.Strategy.ROUND_ROBIN;
+import static ru.kmoiseev.archive.balancerlive.dto.Strategy.RANDOM;
+import static ru.kmoiseev.archive.balancerlive.dto.Strategy.ROUND_ROBIN;
 
 /**
  * Task 1. Register backend-instance to the Load Balancer

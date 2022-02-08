@@ -1,4 +1,4 @@
-package ru.kmoiseev.balancer.impl.strategy;
+package ru.kmoiseev.archive.balancer.impl.strategy;
 
 import lombok.Value;
 

@@ -1,12 +1,12 @@
-package ru.kmoiseev.balancer.impl;
+package ru.kmoiseev.archive.balancer.impl;
 
-import ru.kmoiseev.balancer.LoadBalancer;
-import ru.kmoiseev.balancer.impl.strategy.BalanceType;
-import ru.kmoiseev.balancer.impl.strategy.Context;
-import ru.kmoiseev.balancer.impl.strategy.Strategy;
-import ru.kmoiseev.balancer.impl.strategy.StrategyEmptyUrls;
-import ru.kmoiseev.balancer.impl.strategy.StrategyRandom;
-import ru.kmoiseev.balancer.impl.strategy.StrategyRoundRobin;
+import ru.kmoiseev.archive.balancer.LoadBalancer;
+import ru.kmoiseev.archive.balancer.impl.strategy.BalanceType;
+import ru.kmoiseev.archive.balancer.impl.strategy.Context;
+import ru.kmoiseev.archive.balancer.impl.strategy.Strategy;
+import ru.kmoiseev.archive.balancer.impl.strategy.StrategyEmptyUrls;
+import ru.kmoiseev.archive.balancer.impl.strategy.StrategyRandom;
+import ru.kmoiseev.archive.balancer.impl.strategy.StrategyRoundRobin;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -15,8 +15,8 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static java.util.Collections.emptyList;
-import static ru.kmoiseev.balancer.impl.strategy.BalanceType.RANDOM;
-import static ru.kmoiseev.balancer.impl.strategy.BalanceType.ROUND_ROBIN;
+import static ru.kmoiseev.archive.balancer.impl.strategy.BalanceType.RANDOM;
+import static ru.kmoiseev.archive.balancer.impl.strategy.BalanceType.ROUND_ROBIN;
 
 /**
  * @author konstantinmoiseev

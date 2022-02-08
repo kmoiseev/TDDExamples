@@ -1,4 +1,4 @@
-package ru.kmoiseev.live.exception;
+package ru.kmoiseev.archive.balancerlive.exception;
 
 /**
  * @author konstantinmoiseev

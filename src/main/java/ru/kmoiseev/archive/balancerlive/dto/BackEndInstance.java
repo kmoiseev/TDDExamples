@@ -1,4 +1,4 @@
-package ru.kmoiseev.live.dto;
+package ru.kmoiseev.archive.balancerlive.dto;
 
 import java.util.Objects;
 

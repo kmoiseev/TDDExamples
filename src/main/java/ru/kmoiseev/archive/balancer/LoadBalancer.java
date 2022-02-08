@@ -1,6 +1,6 @@
-package ru.kmoiseev.balancer;
+package ru.kmoiseev.archive.balancer;
 
-import ru.kmoiseev.balancer.impl.strategy.BalanceType;
+import ru.kmoiseev.archive.balancer.impl.strategy.BalanceType;
 
 /**
  * Req:

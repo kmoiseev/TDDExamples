@@ -1,9 +1,8 @@
-package ru.kmoiseev.balancer;
+package ru.kmoiseev.archive.balancer;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import ru.kmoiseev.balancer.impl.LoadBalancerImpl;
-import ru.kmoiseev.balancer.impl.strategy.BalanceType;
+import ru.kmoiseev.archive.balancer.impl.LoadBalancerImpl;
 
 import java.util.List;
 import java.util.Set;
@@ -19,8 +18,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static ru.kmoiseev.balancer.impl.strategy.BalanceType.RANDOM;
-import static ru.kmoiseev.balancer.impl.strategy.BalanceType.ROUND_ROBIN;
+import static ru.kmoiseev.archive.balancer.impl.strategy.BalanceType.RANDOM;
+import static ru.kmoiseev.archive.balancer.impl.strategy.BalanceType.ROUND_ROBIN;
 
 /**
  * @author konstantinmoiseev

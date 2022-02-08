@@ -1,7 +1,7 @@
-package ru.kmoiseev.live;
+package ru.kmoiseev.archive.balancerlive;
 
-import ru.kmoiseev.live.dto.BackEndInstance;
-import ru.kmoiseev.live.dto.Strategy;
+import ru.kmoiseev.archive.balancerlive.dto.BackEndInstance;
+import ru.kmoiseev.archive.balancerlive.dto.Strategy;
 
 /**
  * @author konstantinmoiseev
