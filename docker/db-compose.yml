@@ -1,0 +1,12 @@
+version: '3'
+services:
+  database:
+    image: postgres
+    container_name: postgres
+    environment:
+      - POSTGRES_DB=testdb
+      - POSTGRES_USER=testuser
+      - POSTGRES_PASSWORD=testpassword
+    ports:
+      - 5432:5432
+   ## command: ["postgres", "-c", "log_statement=all"]

@@ -29,7 +29,7 @@ public class LoadBalancerImpl implements LoadBalancer {
             ROUND_ROBIN, StrategyRoundRobin::new,
             RANDOM, StrategyRandom::new
     );
-    private List<String> urls = emptyList();
+    private volatile List<String> urls = emptyList();
     private Map<BalanceType,Strategy> strategies = Map.of(
             ROUND_ROBIN, new StrategyEmptyUrls(),
             RANDOM, new StrategyEmptyUrls());

@@ -1,42 +1,33 @@
-package ru.kmoiseev.archive.moneytransfer.impl;
+package ru.kmoiseev.archive.moneytransfer.impl.inmemory;
 
-import ru.kmoiseev.archive.moneytransfer.MoneyTrans;
+import ru.kmoiseev.archive.moneytransfer.MoneyTransfer;
+import ru.kmoiseev.archive.moneytransfer.impl.common.InputValidator;
 
-import java.math.BigInteger;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static java.math.BigInteger.ZERO;
-import static java.util.Objects.nonNull;
 import static java.util.Optional.ofNullable;
 
 /**
  * @author konstantinmoiseev
  * @since 24.01.2022
  */
-public class MoneyTransImpl implements MoneyTrans {
+public class MoneyTransferInMemoryPessimistic implements MoneyTransfer {
 
     private final Map<String,Account> accounts = new ConcurrentHashMap<>();
-
-    private static boolean checkAccountInput(String account) {
-        return nonNull(account) && !account.isBlank() && account.length() <= 256;
-    }
-
-    private static boolean checkAmountInput(BigInteger amount) {
-        return nonNull(amount) && amount.compareTo(ZERO) > 0;
-    }
+    private final InputValidator validator = new InputValidator();
 
     @Override
     public boolean createAccount(String account) {
-        if (!checkAccountInput(account)) {
+        if (!validator.checkAccountInput(account)) {
             return false;
         }
         return accounts.putIfAbsent(account, new Account()) == null;
     }
 
     @Override
-    public boolean deposit(String toAccount, BigInteger amount) {
-        if (!checkAccountInput(toAccount) || !checkAmountInput(amount)) {
+    public boolean deposit(String toAccount, Long amount) {
+        if (!validator.checkAccountInput(toAccount) || !validator.checkAmountInput(amount)) {
             return false;
         }
 
@@ -46,15 +37,17 @@ public class MoneyTransImpl implements MoneyTrans {
         }
 
         synchronized (account) {
-            account.deposit = account.deposit.add(amount);
+            account.deposit = account.deposit + amount;
         }
 
         return true;
     }
 
     @Override
-    public boolean transfer(String fromAccountName, String toAccountName, BigInteger amount) {
-        if (!checkAccountInput(fromAccountName) || !checkAccountInput(toAccountName) || !checkAmountInput(amount)) {
+    public boolean transfer(String fromAccountName, String toAccountName, Long amount) {
+        if (!validator.checkAccountInput(fromAccountName) ||
+                !validator.checkAccountInput(toAccountName) ||
+                !validator.checkAmountInput(amount)) {
             return false;
         }
 
@@ -69,19 +62,19 @@ public class MoneyTransImpl implements MoneyTrans {
             if (fromAccount.deposit.compareTo(amount) < 0) {
                 return false;
             }
-            fromAccount.deposit = fromAccount.deposit.subtract(amount);
+            fromAccount.deposit = fromAccount.deposit - amount;
         }
 
         synchronized (toAccount) {
-            toAccount.deposit = toAccount.deposit.add(amount);
+            toAccount.deposit = toAccount.deposit + amount;
         }
 
         return true;
     }
 
     @Override
-    public BigInteger getAmount(String accountName) {
-        if (!checkAccountInput(accountName)) {
+    public Long getAmount(String accountName) {
+        if (!validator.checkAccountInput(accountName)) {
             return null;
         }
         final Account account = accounts.get(accountName);
@@ -91,6 +84,6 @@ public class MoneyTransImpl implements MoneyTrans {
     }
 
     private static class Account {
-        private BigInteger deposit = ZERO;
+        private Long deposit = 0L;
     }
 }
