@@ -1,4 +1,4 @@
-package ru.kmoiseev.archive.moneytransfer.impl.common;
+package ru.kmoiseev.archive.moneytransfer.impl.db.common;
 
 import static java.util.Objects.nonNull;
 

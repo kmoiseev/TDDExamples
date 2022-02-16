@@ -1,7 +1,7 @@
 package ru.kmoiseev.archive.moneytransfer.impl.inmemory;
 
 import ru.kmoiseev.archive.moneytransfer.MoneyTransfer;
-import ru.kmoiseev.archive.moneytransfer.impl.common.InputValidator;
+import ru.kmoiseev.archive.moneytransfer.impl.db.common.InputValidator;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;

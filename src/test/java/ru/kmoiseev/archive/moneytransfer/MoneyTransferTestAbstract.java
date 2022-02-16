@@ -284,16 +284,36 @@ public class MoneyTransferTestAbstract {
             moneyTransfer.closeConnection();
         });
 
+        // left to right incorrect
+        final Thread leftToRightIncorrectAsync = new Thread(() -> {
+            for (int i = 0; i < 30 * moneyMultiplier; ++i) {
+                moneyTransfer.transfer(leftName, rightName, 500L * moneyMultiplier);
+            }
+            moneyTransfer.closeConnection();
+        });
+
+        // right to left incorrect
+        final Thread rightToLeftIncorrectAsync = new Thread(() -> {
+            for (int i = 0; i < 30 * moneyMultiplier; ++i) {
+                moneyTransfer.transfer(rightName, leftName, 500L * moneyMultiplier);
+            }
+            moneyTransfer.closeConnection();
+        });
+
         try {
             rightToLeftAsync.start();
             leftToRightAsync.start();
             leftDepositAsync.start();
             rightDepositAsync.start();
+            leftToRightIncorrectAsync.start();
+            rightToLeftIncorrectAsync.start();
 
             rightToLeftAsync.join();
             leftToRightAsync.join();
             leftDepositAsync.join();
             rightDepositAsync.join();
+            leftToRightIncorrectAsync.join();
+            rightToLeftIncorrectAsync.join();
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
@@ -303,7 +323,6 @@ public class MoneyTransferTestAbstract {
     }
 
     // ----------- Async tests -----------
-    @Test
     void manyTransfersFromOneAccountToAnotherSingleThread() {
         final String accountLeft = "accLeft";
         final String accountRight = "accRight";

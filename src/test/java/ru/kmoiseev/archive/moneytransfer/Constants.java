@@ -5,6 +5,6 @@ package ru.kmoiseev.archive.moneytransfer;
  * @since 15.02.2022
  */
 public class Constants {
-    public static final Long MULTIPLIER_DATABASE = 40L;
-    public static final Long MULTIPLIER_IN_MEMORY = 1000L;
+    public static final Long MULTIPLIER_DATABASE = 100L;
+    public static final Long MULTIPLIER_IN_MEMORY = 10000L;
 }

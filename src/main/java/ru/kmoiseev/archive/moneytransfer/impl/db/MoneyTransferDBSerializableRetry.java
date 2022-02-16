@@ -3,89 +3,59 @@ package ru.kmoiseev.archive.moneytransfer.impl.db;
 import lombok.SneakyThrows;
 import org.postgresql.util.PSQLException;
 import ru.kmoiseev.archive.moneytransfer.MoneyTransfer;
-import ru.kmoiseev.archive.moneytransfer.impl.common.InputValidator;
+import ru.kmoiseev.archive.moneytransfer.impl.db.common.InputValidator;
 import ru.kmoiseev.archive.moneytransfer.impl.db.common.ConnectionThreadSafeHolder;
+import ru.kmoiseev.archive.moneytransfer.impl.db.common.QueryHelper;
 
 import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 
 /**
  * ----- DEPOSIT -----
- *
+ * <p>
  * BEGIN
- *  SELECT amount FROM accounts WHERE id = XXX;
- *  UPDATE amount SET amount = AAA WHERE id = XXX;
- *  COMMIT;
+ * SELECT amount FROM accounts WHERE id = XXX;
+ * UPDATE amount SET amount = AAA WHERE id = XXX;
+ * COMMIT;
  * END
  * -- ROLLBACK + RETRY IF ERROR
- *
+ * <p>
  * ----- TRANSFER -----
- *
+ * <p>
  * BEGIN
- *  # order selects based on id
- *  SELECT amount FROM accounts WHERE id = LEFT_LOCK;
- *  SELECT amount FROM accounts WHERE id = RIGHT_LOCK;
- *
- *  # order updates based on id
- *  UPDATE accounts SET amount = NEW_AMOUNT_FROM WHERE id = FROM_ID;
- *  UPDATE accounts SET amount = NEW_AMOUNT_TO WHERE id = TO_ID;
- *
- *  COMMIT;
+ * SELECT amount FROM accounts WHERE id = LEFT_LOCK;
+ * SELECT amount FROM accounts WHERE id = RIGHT_LOCK;
+ * <p>
+ * # order updates based on id
+ * UPDATE accounts SET amount = NEW_AMOUNT_FROM WHERE id = FROM_ID;
+ * UPDATE accounts SET amount = NEW_AMOUNT_TO WHERE id = TO_ID;
+ * <p>
+ * COMMIT;
  * END
  * -- ROLLBACK + RETRY IF ERROR
- *
  */
 public class MoneyTransferDBSerializableRetry extends ConnectionThreadSafeHolder implements MoneyTransfer {
 
     private final InputValidator validator = new InputValidator();
+    private final QueryHelper queryHelper = new QueryHelper(this);
 
     @SneakyThrows
     @Override
     protected void modifyConnection(Connection connection) {
         super.modifyConnection(connection);
 
-        connection.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
-    }
-
-    @SneakyThrows
-    private boolean checkAccountExists(final String account) {
-
-        final PreparedStatement statement = getConnection().prepareStatement("select count(*) from accounts where id=?;");
-        statement.setString(1, account);
-        final ResultSet resultSet = statement.executeQuery();
-        resultSet.next();
-        final boolean exists = resultSet.getInt(1) == 1;
-        resultSet.close();
-
-        return exists;
-    }
-
-    @SneakyThrows
-    private Long selectAccountAmount(final String account) {
-        final PreparedStatement statement = getConnection().prepareStatement("select amount from accounts where id=? for update;");
-        statement.setString(1, account);
-        final ResultSet resultSet = statement.executeQuery();
-        if (!resultSet.next()) {
-            return null;
-        }
-        return resultSet.getLong(1);
+        connection.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
     }
 
     @SneakyThrows
     @Override
     public boolean createAccount(String account) {
-        if (!validator.checkAccountInput(account) || checkAccountExists(account)) {
+        if (!validator.checkAccountInput(account) ||
+                queryHelper.checkAccountExists(account)) {
             return false;
         }
 
-        final PreparedStatement statement = getConnection().prepareStatement("INSERT INTO accounts VALUES(?, ?);\n");
-
-        statement.setString(1, account);
-        statement.setLong(2, 0L);
-
-        statement.executeUpdate();
+        queryHelper.createAccount(account);
 
         getConnection().commit();
 
@@ -102,21 +72,19 @@ public class MoneyTransferDBSerializableRetry extends ConnectionThreadSafeHolder
 
         while (true) {
             try {
-                final Long amountBeforeDeposit = selectAccountAmount(toAccount);
+                final Long amountBeforeDeposit = queryHelper.selectAmount(toAccount);
                 if (amountBeforeDeposit == null) {
                     return false;
                 }
 
-                setAmountRetryable(toAccount, amountBeforeDeposit + amount);
+                if (!queryHelper.updateAmount(toAccount, amountBeforeDeposit + amount)) {
+                    return false;
+                }
 
                 getConnection().commit();
-
                 return true;
             } catch (PSQLException e) {
                 getConnection().rollback();
-            } catch (SQLException e) {
-                getConnection().rollback();
-                return false;
             }
         }
     }
@@ -130,58 +98,39 @@ public class MoneyTransferDBSerializableRetry extends ConnectionThreadSafeHolder
             return false;
         }
 
-
+        final boolean firstLockOnFrom = fromAccount.compareTo(toAccount) > 0;
 
         while (true) {
             try {
-                final boolean firstLockOnFrom = fromAccount.compareTo(toAccount) > 0;
 
-                final Long amountOnFrom;
-                final Long amountOnTo;
-
-                if (firstLockOnFrom) {
-                    amountOnFrom = selectAccountAmount(fromAccount);
-                    amountOnTo = selectAccountAmount(toAccount);
-                } else {
-                    amountOnTo = selectAccountAmount(toAccount);
-                    amountOnFrom = selectAccountAmount(fromAccount);
-                }
+                final Long amountOnFrom = queryHelper.selectAmount(fromAccount);
+                final Long amountOnTo = queryHelper.selectAmount(toAccount);
 
                 if (amountOnFrom == null || amountOnTo == null || amountOnFrom < amount) {
                     getConnection().rollback();
                     return false;
                 }
 
+                final boolean fromUpdated;
+                final boolean toUpdated;
                 if (firstLockOnFrom) {
-                    setAmountRetryable(fromAccount, amountOnFrom - amount);
-                    setAmountRetryable(toAccount, amountOnTo + amount);
+                    fromUpdated = queryHelper.updateAmount(fromAccount, amountOnFrom - amount);
+                    toUpdated = queryHelper.updateAmount(toAccount, amountOnTo + amount);
                 } else {
-                    setAmountRetryable(toAccount, amountOnTo + amount);
-                    setAmountRetryable(fromAccount, amountOnFrom - amount);
+                    toUpdated = queryHelper.updateAmount(toAccount, amountOnTo + amount);
+                    fromUpdated = queryHelper.updateAmount(fromAccount, amountOnFrom - amount);
                 }
-                getConnection().commit();
 
-                return true;
+                if (toUpdated && fromUpdated) {
+                    getConnection().commit();
+                    return true;
+                } else {
+                    getConnection().rollback();
+                    return false;
+                }
             } catch (PSQLException e) {
                 getConnection().rollback();
-            } catch (SQLException e) {
-                try {
-                    getConnection().rollback();
-                } catch (SQLException throwables) {
-                    throwables.printStackTrace();
-                }
-                return false;
             }
-        }
-    }
-
-    private void setAmountRetryable(final String account, Long newValue) throws SQLException {
-        final PreparedStatement statement =
-                getConnection().prepareStatement("UPDATE accounts SET amount = ? where id = ?;");
-        statement.setLong(1, newValue);
-        statement.setString(2, account);
-        if (statement.executeUpdate() == 0) {
-            throw new SQLException("No row updated");
         }
     }
 
@@ -192,18 +141,7 @@ public class MoneyTransferDBSerializableRetry extends ConnectionThreadSafeHolder
             return null;
         }
 
-        final PreparedStatement statement = getConnection().prepareStatement("SELECT amount from accounts WHERE id = ?");
-
-        statement.setString(1, account);
-
-        final ResultSet resultSet = statement.executeQuery();
-        if (!resultSet.next()) {
-            return null;
-        }
-        final long result = resultSet.getLong(1);
-        resultSet.close();
-
-        return result;
+        return queryHelper.selectAmount(account);
     }
 
     @SneakyThrows
@@ -212,7 +150,7 @@ public class MoneyTransferDBSerializableRetry extends ConnectionThreadSafeHolder
         getConnection().prepareStatement(
                 "CREATE TABLE IF NOT EXISTS accounts(" +
                         "id varchar(256) primary key," +
-                        "amount int not null" +
+                        "amount bigint not null" +
                         ");"
         ).execute();
         getConnection().commit();

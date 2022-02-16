@@ -8,8 +8,8 @@ import static ru.kmoiseev.archive.moneytransfer.Constants.MULTIPLIER_DATABASE;
  * @author konstantinmoiseev
  * @since 15.02.2022
  */
-public class MoneyTransferTestDBReadCommittedWithLock extends MoneyTransferTestAbstract {
-    public MoneyTransferTestDBReadCommittedWithLock() {
-        super(new MoneyTransferDBReadCommittedWithLock(), MULTIPLIER_DATABASE);
+public class MoneyTransferTestDBReadCommittedTwoRowsDelta extends MoneyTransferTestAbstract {
+    public MoneyTransferTestDBReadCommittedTwoRowsDelta() {
+        super(new MoneyTransferDBReadCommittedTwoRowsDelta(), MULTIPLIER_DATABASE);
     }
 }

@@ -8,8 +8,8 @@ import static ru.kmoiseev.archive.moneytransfer.Constants.MULTIPLIER_DATABASE;
  * @author konstantinmoiseev
  * @since 15.02.2022
  */
-public class MoneyTransferTestDBRepeatableReadLockWithRetry extends MoneyTransferTestAbstract {
-    public MoneyTransferTestDBRepeatableReadLockWithRetry() {
-        super(new MoneyTransferDBRepeatableReadLockWithRetry(), MULTIPLIER_DATABASE);
+public class MoneyTransferTestDBReadCommittedWithReadLock extends MoneyTransferTestAbstract {
+    public MoneyTransferTestDBReadCommittedWithReadLock() {
+        super(new MoneyTransferDBReadCommittedWithReadLock(), MULTIPLIER_DATABASE);
     }
 }
