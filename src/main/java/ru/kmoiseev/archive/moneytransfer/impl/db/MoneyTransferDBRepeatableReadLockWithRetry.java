@@ -14,10 +14,31 @@ import java.sql.SQLException;
 import static java.util.Objects.isNull;
 
 /**
- * @author konstantinmoiseev
- * @since 15.02.2022
+ * ----- DEPOSIT -----
+ *
+ * BEGIN
+ *  SELECT amount FROM accounts WHERE id = XXX FOR UPDATE;
+ *  UPDATE amount SET amount = AAA WHERE id = XXX;
+ *  COMMIT;
+ * END
+ * -- ROLLBACK + RETRY IF ERROR
+ *
+ * ----- TRANSFER -----
+ *
+ * BEGIN
+ *  # order selects based on id
+ *  SELECT amount FROM accounts WHERE id = LEFT_LOCK FOR UPDATE;
+ *  SELECT amount FROM accounts WHERE id = RIGHT_LOCK FOR UPDATE;
+ *
+ *  UPDATE accounts SET amount = NEW_AMOUNT_FROM WHERE id = FROM_ID;
+ *  UPDATE accounts SET amount = NEW_AMOUNT_TO WHERE id = TO_ID;
+ *
+ *  COMMIT;
+ * END
+ * -- ROLLBACK + RETRY IF ERROR
+ *
  */
-public class MoneyTransferDBOptimistic extends ConnectionThreadSafeHolder implements MoneyTransfer {
+public class MoneyTransferDBRepeatableReadLockWithRetry extends ConnectionThreadSafeHolder implements MoneyTransfer {
 
     private final InputValidator validator = new InputValidator();
 
@@ -94,7 +115,6 @@ public class MoneyTransferDBOptimistic extends ConnectionThreadSafeHolder implem
                 return true;
             } catch (PSQLException e) {
                 getConnection().rollback();
-                e.printStackTrace();
             } catch (SQLException e) {
                 getConnection().rollback();
                 return false;
@@ -133,22 +153,16 @@ public class MoneyTransferDBOptimistic extends ConnectionThreadSafeHolder implem
                     return false;
                 }
 
-                if (firstLockOnFrom) {
-                    setAmountRetryable(fromAccount, amountOnFrom - amount);
-                    setAmountRetryable(toAccount, amountOnTo + amount);
-                } else {
-                    setAmountRetryable(toAccount, amountOnTo + amount);
-                    setAmountRetryable(fromAccount, amountOnFrom - amount);
-                }
+                setAmountRetryable(fromAccount, amountOnFrom - amount);
+                setAmountRetryable(toAccount, amountOnTo + amount);
+
                 getConnection().commit();
 
                 return true;
             } catch (PSQLException e) {
                 getConnection().rollback();
-                e.printStackTrace();
             } catch (SQLException e) {
                 try {
-                    e.printStackTrace();
                     getConnection().rollback();
                 } catch (SQLException throwables) {
                     throwables.printStackTrace();
@@ -195,7 +209,7 @@ public class MoneyTransferDBOptimistic extends ConnectionThreadSafeHolder implem
         getConnection().prepareStatement(
                 "CREATE TABLE IF NOT EXISTS accounts(" +
                         "id varchar(256) primary key," +
-                        "amount int not null check ( amount >= 0 )" +
+                        "amount int not null" +
                         ");"
         ).execute();
         getConnection().commit();

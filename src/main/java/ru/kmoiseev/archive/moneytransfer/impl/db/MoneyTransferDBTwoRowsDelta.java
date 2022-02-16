@@ -7,12 +7,28 @@ import ru.kmoiseev.archive.moneytransfer.impl.db.common.ConnectionThreadSafeHold
 
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 
 /**
- * @author konstantinmoiseev
- * @since 15.02.2022
+ * ----- DEPOSIT -----
+ *
+ * BEGIN
+ *  UPDATE amount SET amount = amount + DELTA WHERE id = XXX;
+ *  COMMIT;
+ * END
+ *
+ * ----- TRANSFER -----
+ *
+ * BEGIN
+ *  # order updates based on id
+ *  UPDATE accounts SET amount = amount - DELTA WHERE id = FROM_ID;
+ *  UPDATE accounts SET amount = amount + DELTA WHERE id = TO_ID;
+ *
+ *  COMMIT;
+ * END
+ *
  */
-public class MoneyTransferDBPessimistic extends ConnectionThreadSafeHolder implements MoneyTransfer {
+public class MoneyTransferDBTwoRowsDelta extends ConnectionThreadSafeHolder implements MoneyTransfer {
 
     private final InputValidator validator = new InputValidator();
 
@@ -27,17 +43,6 @@ public class MoneyTransferDBPessimistic extends ConnectionThreadSafeHolder imple
         resultSet.close();
 
         return exists;
-    }
-
-    @SneakyThrows
-    private Long selectAccountAmountForUpdate(final String account) {
-        final PreparedStatement statement = getConnection().prepareStatement("select amount from accounts where id=? for update;");
-        statement.setString(1, account);
-        final ResultSet resultSet = statement.executeQuery();
-        if (!resultSet.next()) {
-            return null;
-        }
-        return resultSet.getLong(1);
     }
 
     @SneakyThrows
@@ -67,22 +72,18 @@ public class MoneyTransferDBPessimistic extends ConnectionThreadSafeHolder imple
             return false;
         }
 
-        final Long amountBeforeDeposit = selectAccountAmountForUpdate(toAccount);
-        if (amountBeforeDeposit == null) {
-            return false;
-        }
-
-        final PreparedStatement statement = getConnection().prepareStatement("UPDATE accounts SET amount = ? where id = ?;");
-        statement.setLong(1, amountBeforeDeposit + amount);
+        final PreparedStatement statement = getConnection().prepareStatement("UPDATE accounts SET amount = amount + ? where id = ?;");
+        statement.setLong(1, amount);
         statement.setString(2, toAccount);
-        statement.executeUpdate();
-
-        getConnection().commit();
+        if (statement.executeUpdate() == 0) {
+            return false;
+        } else {
+            getConnection().commit();
+        }
 
         return true;
     }
 
-    @SneakyThrows
     @Override
     public boolean transfer(String fromAccount, String toAccount, Long amount) {
         if (!validator.checkAccountInput(fromAccount) ||
@@ -91,44 +92,38 @@ public class MoneyTransferDBPessimistic extends ConnectionThreadSafeHolder imple
             return false;
         }
 
+        try {
+            final boolean firstLockOnFrom = fromAccount.compareTo(toAccount) > 0;
 
-        final boolean firstLockOnFrom = fromAccount.compareTo(toAccount) > 0;
+            if (firstLockOnFrom) {
+                updateAmountAtomically(fromAccount, -amount);
+                updateAmountAtomically(toAccount, amount);
+            } else {
+                updateAmountAtomically(toAccount, amount);
+                updateAmountAtomically(fromAccount, -amount);
+            }
 
-        final Long amountOnFrom;
-        final Long amountOnTo;
-
-        if (firstLockOnFrom) {
-            amountOnFrom = selectAccountAmountForUpdate(fromAccount);
-            amountOnTo = selectAccountAmountForUpdate(toAccount);
-        } else {
-            amountOnTo = selectAccountAmountForUpdate(toAccount);
-            amountOnFrom = selectAccountAmountForUpdate(fromAccount);
-        }
-
-        if (amountOnFrom == null || amountOnTo == null || amountOnFrom < amount) {
-            getConnection().rollback();
+            getConnection().commit();
+        } catch (SQLException e) {
+            try {
+                getConnection().rollback();
+            } catch (SQLException throwables) {
+                throwables.printStackTrace();
+            }
             return false;
         }
 
-        {
-            final PreparedStatement statementToUpdateFrom =
-                    getConnection().prepareStatement("UPDATE accounts SET amount = ? where id = ?;");
-            statementToUpdateFrom.setLong(1, amountOnFrom - amount);
-            statementToUpdateFrom.setString(2, fromAccount);
-            statementToUpdateFrom.executeUpdate();
-        }
-
-        {
-            final PreparedStatement statementToUpdateTo =
-                    getConnection().prepareStatement("UPDATE accounts SET amount = amount + ? where id = ?;");
-            statementToUpdateTo.setLong(1, amount);
-            statementToUpdateTo.setString(2, toAccount);
-            statementToUpdateTo.executeUpdate();
-        }
-
-        getConnection().commit();
-
         return true;
+    }
+
+    private void updateAmountAtomically(final String account, Long delta) throws SQLException {
+        final PreparedStatement statement =
+                getConnection().prepareStatement("UPDATE accounts SET amount = amount + ? where id = ?;");
+        statement.setLong(1, delta);
+        statement.setString(2, account);
+        if (statement.executeUpdate() == 0) {
+            throw new SQLException("No row updated");
+        }
     }
 
     @SneakyThrows
@@ -158,18 +153,10 @@ public class MoneyTransferDBPessimistic extends ConnectionThreadSafeHolder imple
         getConnection().prepareStatement(
                 "CREATE TABLE IF NOT EXISTS accounts(" +
                         "id varchar(256) primary key," +
-                        "amount bigint not null" +
+                        "amount int not null check ( amount >= 0 )" +
                         ");"
         ).execute();
         getConnection().commit();
     }
 
-    @SneakyThrows
-    @Override
-    public void shutdown() {
-        getConnection().prepareStatement(
-                "drop TABLE accounts;"
-        ).execute();
-        getConnection().commit();
-    }
 }

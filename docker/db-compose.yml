@@ -9,4 +9,8 @@ services:
       - POSTGRES_PASSWORD=testpassword
     ports:
       - 5432:5432
-   ## command: ["postgres", "-c", "log_statement=all"]
+    command: [
+        "postgres",
+        ##"-c", "log_statement=all",
+        "-c", "max_connections=1000"
+    ]
