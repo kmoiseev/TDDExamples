@@ -11,9 +11,8 @@ import ru.kmoiseev.archive.moneytransfer.impl.db.common.QueryHelper;
  *
  * BEGIN
  *  SELECT amount FROM accounts WHERE id = XXX FOR UPDATE;
- *  UPDATE amount SET amount = AAA WHERE id = XXX;
+ *  UPDATE amount SET amount = NEW_AMOUNT WHERE id = XXX;
  *  COMMIT;
- * END
  *
  * ----- TRANSFER -----
  *
@@ -25,9 +24,7 @@ import ru.kmoiseev.archive.moneytransfer.impl.db.common.QueryHelper;
  *  UPDATE accounts SET amount = NEW_AMOUNT_FROM WHERE id = FROM_ID;
  *  UPDATE accounts SET amount = NEW_AMOUNT_TO WHERE id = TO_ID;
  *
- *  COMMIT;
- * END
- *
+ * COMMIT;
  */
 public class MoneyTransferDBReadCommittedWithReadLock extends ConnectionThreadSafeHolder implements MoneyTransfer {
 

@@ -11,6 +11,6 @@ services:
       - 5432:5432
     command: [
         "postgres",
-        ##"-c", "log_statement=all",
+        #"-c", "log_statement=all",
         "-c", "max_connections=1000"
     ]

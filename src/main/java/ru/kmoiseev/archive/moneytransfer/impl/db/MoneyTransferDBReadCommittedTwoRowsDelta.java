@@ -13,7 +13,6 @@ import ru.kmoiseev.archive.moneytransfer.impl.db.common.QueryHelper;
  * BEGIN
  * UPDATE amount SET amount = amount + DELTA WHERE id = XXX;
  * COMMIT;
- * END
  * <p>
  * ----- TRANSFER -----
  * <p>
@@ -23,7 +22,6 @@ import ru.kmoiseev.archive.moneytransfer.impl.db.common.QueryHelper;
  * UPDATE accounts SET amount = amount + DELTA WHERE id = TO_ID;
  * <p>
  * COMMIT;
- * END
  */
 public class MoneyTransferDBReadCommittedTwoRowsDelta extends ConnectionThreadSafeHolder implements MoneyTransfer {
 

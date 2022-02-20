@@ -13,11 +13,10 @@ import java.sql.Connection;
  * ----- DEPOSIT -----
  * <p>
  * BEGIN
- * SELECT amount FROM accounts WHERE id = XXX;
+ * SELECT amount, version FROM accounts WHERE id = XXX;
  * UPDATE amount SET amount = AAA WHERE id = XXX;
+ * -- ROLLBACK + RETRY IF UPDATE FAILED !
  * COMMIT;
- * END
- * -- ROLLBACK + RETRY IF ERROR
  * <p>
  * ----- TRANSFER -----
  * <p>

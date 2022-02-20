@@ -21,9 +21,10 @@ import java.sql.SQLException;
  * ----- DEPOSIT -----
  * <p>
  * BEGIN
- * UPDATE amount SET amount = amount + DELTA WHERE id = XXX;
+ * SELECT amount, version FROM accounts WHERE id = XXX;
+ * UPDATE amount SET amount = NEW_AMOUNT, version = NEW_VERSION WHERE id = XXX AND version = OLD_VERSION;
+ * -- ROLLBACK + RETRY IF NOTHING HAS BEEN UPDATED !
  * COMMIT;
- * END
  * <p>
  * ----- TRANSFER -----
  * <p>
@@ -32,14 +33,13 @@ import java.sql.SQLException;
  * SELECT version, amount FROM accounts WHERE id = FROM_ID;
  * SELECT version, amount FROM accounts WHERE id = TO_ID;
  * <p>
- * #
- * UPDATE accounts SET amount = amount - DELTA WHERE id = FROM_ID and version = PREVIOUS_VERSION_FROM;
- * UPDATE accounts SET amount = amount + DELTA WHERE id = TO_ID and version = PREVIOUS_VERSION_TO;
+ * # order updates based on id
+ * UPDATE accounts SET amount = NEW_AMOUNT_FROM, version = NEW_VERSION_FROM WHERE id = FROM_ID and version = PREVIOUS_VERSION_FROM;
+ * UPDATE accounts SET amount = NEW_AMOUNT_TO, version = NEW_VERSION_TO WHERE id = TO_ID and version = PREVIOUS_VERSION_TO;
  * <p>
  * -- ROLLBACK IF BOTH ROWS HAVE NOT BEEN UPDATED
  * <p>
  * COMMIT;
- * END
  */
 public class MoneyTransferDBReadCommittedOptimistic extends ConnectionThreadSafeHolder implements MoneyTransfer {
 
@@ -88,7 +88,7 @@ public class MoneyTransferDBReadCommittedOptimistic extends ConnectionThreadSafe
                 getConnection().commit();
                 return true;
             } else {
-               // getConnection().rollback();
+                // getConnection().rollback();
             }
         }
     }
@@ -109,7 +109,7 @@ public class MoneyTransferDBReadCommittedOptimistic extends ConnectionThreadSafe
             if (amountFrom == null ||
                     amountTo == null ||
                     amountFrom < amount) {
-               // getConnection().rollback();
+                // getConnection().rollback();
                 return false;
             }
 
@@ -139,8 +139,8 @@ public class MoneyTransferDBReadCommittedOptimistic extends ConnectionThreadSafe
             if (fromUpdated && toUpdated) {
                 getConnection().commit();
                 return true;
-            } else if (fromUpdated || toUpdated) {
-                 getConnection().rollback();
+            } else {
+                getConnection().rollback();
             }
         }
     }

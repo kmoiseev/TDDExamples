@@ -4,8 +4,13 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.List;
 import java.util.stream.Collectors;
 
+import static java.lang.Long.min;
 import static java.lang.Long.valueOf;
 import static java.util.stream.IntStream.rangeClosed;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -19,8 +24,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 public class MoneyTransferTestAbstract {
 
-    protected MoneyTransfer moneyTransfer;
     private final Long moneyMultiplier;
+    protected MoneyTransfer moneyTransfer;
 
     public MoneyTransferTestAbstract(MoneyTransfer moneyTransfer, Long moneyMultiplier) {
         this.moneyTransfer = moneyTransfer;
@@ -247,6 +252,10 @@ public class MoneyTransferTestAbstract {
         moneyTransfer.createAccount(rightName);
         moneyTransfer.deposit(rightName, rightAmount);
 
+        final List<Long> transfersTimings = new ArrayList<>((int) (100 * moneyMultiplier));
+        final List<Long> incorrectTransfersTimings = new ArrayList<>((int) (100 * moneyMultiplier));
+        final List<Long> depositsTimings = new ArrayList<>((int) (100 * moneyMultiplier));
+
         // executing in parallel 300k transfers 1$ each from right to left
         // and 200k transfers 1$ each from left to right
         // in parallel, adding 250k deposits to each
@@ -255,7 +264,9 @@ public class MoneyTransferTestAbstract {
         // right to left 300k 1$ each
         final Thread rightToLeftAsync = new Thread(() -> {
             for (int i = 0; i < 30 * moneyMultiplier; ++i) {
+                final long before = System.currentTimeMillis();
                 moneyTransfer.transfer(rightName, leftName, 1L);
+                transfersTimings.add(System.currentTimeMillis() - before);
             }
             moneyTransfer.closeConnection();
         });
@@ -263,7 +274,9 @@ public class MoneyTransferTestAbstract {
         // right debit 250k 1$ each
         final Thread rightDepositAsync = new Thread(() -> {
             for (int i = 0; i < 25 * moneyMultiplier; ++i) {
+                final long before = System.currentTimeMillis();
                 moneyTransfer.deposit(rightName, 1L);
+                depositsTimings.add(System.currentTimeMillis() - before);
             }
             moneyTransfer.closeConnection();
         });
@@ -271,7 +284,9 @@ public class MoneyTransferTestAbstract {
         // left to right 200k 1$ each
         final Thread leftToRightAsync = new Thread(() -> {
             for (int i = 0; i < 20 * moneyMultiplier; ++i) {
+                final long before = System.currentTimeMillis();
                 moneyTransfer.transfer(leftName, rightName, 1L);
+                transfersTimings.add(System.currentTimeMillis() - before);
             }
             moneyTransfer.closeConnection();
         });
@@ -279,7 +294,9 @@ public class MoneyTransferTestAbstract {
         // left debit 250k 1$ each
         final Thread leftDepositAsync = new Thread(() -> {
             for (int i = 0; i < 25 * moneyMultiplier; ++i) {
+                final long before = System.currentTimeMillis();
                 moneyTransfer.deposit(leftName, 1L);
+                depositsTimings.add(System.currentTimeMillis() - before);
             }
             moneyTransfer.closeConnection();
         });
@@ -287,7 +304,9 @@ public class MoneyTransferTestAbstract {
         // left to right incorrect
         final Thread leftToRightIncorrectAsync = new Thread(() -> {
             for (int i = 0; i < 30 * moneyMultiplier; ++i) {
+                final long before = System.currentTimeMillis();
                 moneyTransfer.transfer(leftName, rightName, 500L * moneyMultiplier);
+                incorrectTransfersTimings.add(System.currentTimeMillis() - before);
             }
             moneyTransfer.closeConnection();
         });
@@ -295,10 +314,14 @@ public class MoneyTransferTestAbstract {
         // right to left incorrect
         final Thread rightToLeftIncorrectAsync = new Thread(() -> {
             for (int i = 0; i < 30 * moneyMultiplier; ++i) {
+                final long before = System.currentTimeMillis();
                 moneyTransfer.transfer(rightName, leftName, 500L * moneyMultiplier);
+                incorrectTransfersTimings.add(System.currentTimeMillis() - before);
             }
             moneyTransfer.closeConnection();
         });
+
+        final long testStartTime = System.currentTimeMillis();
 
         try {
             rightToLeftAsync.start();
@@ -318,12 +341,32 @@ public class MoneyTransferTestAbstract {
             e.printStackTrace();
         }
 
+        System.out.println("Transfers: " + percentilesStats(transfersTimings));
+        System.out.println("Deposits: " + percentilesStats(depositsTimings));
+        System.out.println("Incorrect Transfers: " + percentilesStats(incorrectTransfersTimings));
+        System.out.println("Total Time Async: " + (System.currentTimeMillis() - testStartTime));
+
         assertEquals(valueOf(135 * moneyMultiplier), moneyTransfer.getAmount("accLeft"));
         assertEquals(valueOf(215 * moneyMultiplier), moneyTransfer.getAmount("accRight"));
     }
 
+    private static String percentilesStats(final List<Long> statsUnsorted) {
+        statsUnsorted.sort(Long::compareTo);
+
+        return "p1 = " + statsUnsorted.get(0) +
+                " p2 = " + statsUnsorted.get((int)(0.02 * statsUnsorted.size())) +
+                " p50 = " + statsUnsorted.get((int)(0.50 * statsUnsorted.size())) +
+                " p99 = " + statsUnsorted.get(Integer.min(statsUnsorted.size() - 1, (int) (0.98 * statsUnsorted.size()))) +
+                " p100 = " + statsUnsorted.get(statsUnsorted.size() - 1);
+    }
+
     // ----------- Async tests -----------
+    @Test
     void manyTransfersFromOneAccountToAnotherSingleThread() {
+
+
+        final List<Long> transfersTimings = new ArrayList<>((int) (100 * moneyMultiplier));
+
         final String accountLeft = "accLeft";
         final String accountRight = "accRight";
         final Long amountLeft = 100L * moneyMultiplier;
@@ -334,9 +377,17 @@ public class MoneyTransferTestAbstract {
         moneyTransfer.createAccount(accountRight);
         moneyTransfer.deposit(accountRight, amountRight);
 
+        final long testStartTime = System.currentTimeMillis();
+
         for (int i = 0; i < 100 * moneyMultiplier; ++i) {
+            final long before = System.currentTimeMillis();
             moneyTransfer.transfer(accountLeft, accountRight, 1L);
+            transfersTimings.add(System.currentTimeMillis() - before);
         }
+
+        System.out.println("-------------- Statistics for " + moneyTransfer.getClass().getSimpleName() + "-------------");
+        System.out.println("Transfers Sync: " + percentilesStats(transfersTimings));
+        System.out.println("Total Time Sync: " + (System.currentTimeMillis() - testStartTime));
 
         assertEquals(valueOf(0L), moneyTransfer.getAmount("accLeft"));
         assertEquals(valueOf(2 * 100L * moneyMultiplier), moneyTransfer.getAmount("accRight"));

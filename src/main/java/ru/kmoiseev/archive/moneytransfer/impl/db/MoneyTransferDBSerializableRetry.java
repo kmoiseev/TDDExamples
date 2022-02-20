@@ -3,19 +3,18 @@ package ru.kmoiseev.archive.moneytransfer.impl.db;
 import lombok.SneakyThrows;
 import org.postgresql.util.PSQLException;
 import ru.kmoiseev.archive.moneytransfer.MoneyTransfer;
-import ru.kmoiseev.archive.moneytransfer.impl.db.common.InputValidator;
 import ru.kmoiseev.archive.moneytransfer.impl.db.common.ConnectionThreadSafeHolder;
+import ru.kmoiseev.archive.moneytransfer.impl.db.common.InputValidator;
 import ru.kmoiseev.archive.moneytransfer.impl.db.common.QueryHelper;
 
 import java.sql.Connection;
-import java.sql.SQLException;
 
 /**
  * ----- DEPOSIT -----
  * <p>
  * BEGIN
  * SELECT amount FROM accounts WHERE id = XXX;
- * UPDATE amount SET amount = AAA WHERE id = XXX;
+ * UPDATE amount SET amount = NEW_AMOUNT WHERE id = XXX;
  * COMMIT;
  * END
  * -- ROLLBACK + RETRY IF ERROR
