@@ -32,7 +32,7 @@ import java.sql.Connection;
  * END
  * -- ROLLBACK + RETRY IF ERROR
  */
-public class MoneyTransferDBRepeatableReadLockWithRetry extends ConnectionThreadSafeHolder implements MoneyTransfer {
+public class MoneyTransferDBRepeatableReadRetry extends ConnectionThreadSafeHolder implements MoneyTransfer {
 
     private final InputValidator validator = new InputValidator();
     private final QueryHelper queryHelper = new QueryHelper(this);
